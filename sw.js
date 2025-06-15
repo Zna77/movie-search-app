@@ -1,18 +1,22 @@
 const CACHE_NAME = "movie-app-v1";
+
+// List of assets to pre-cache (use relative paths within the SW scope)
 const STATIC_ASSETS = [
-  "/", // your index.html
-  "/style.css",
-  "/script.js",
-  "/favicon.ico", // any other static files
+  "./", // root of the app
+  "./index.html", // homepage
+  "./style.css", // CSS
+  "./script.js", // main JS
+  "./sw.js", // Service Worker script
 ];
 
-// 1. Pre‐cache app shell
+// 1. Pre-cache app shell
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) => cache.addAll(STATIC_ASSETS))
       .then(() => self.skipWaiting())
+      .catch((err) => console.error("SW install failed:", err))
   );
 });
 
@@ -31,19 +35,20 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// 3. Runtime caching for everything else (API + images)
+// 3. Runtime caching for images and API
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
+  const { request } = event;
+  const url = new URL(request.url);
 
   // 3a. TMDB images – Cache First
   if (url.origin === "https://image.tmdb.org") {
     event.respondWith(
-      caches.match(event.request).then(
+      caches.match(request).then(
         (cached) =>
           cached ||
-          fetch(event.request).then((resp) => {
+          fetch(request).then((resp) => {
             return caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, resp.clone());
+              cache.put(request, resp.clone());
               return resp;
             });
           })
@@ -52,25 +57,22 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 3b. API calls – Network First (so you always get latest, but fallback to cache when offline)
+  // 3b. API calls – Network First with fallback to cache
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(event.request)
+      fetch(request)
         .then((resp) => {
-          // update cache
           const copy = resp.clone();
-          caches
-            .open(CACHE_NAME)
-            .then((cache) => cache.put(event.request, copy));
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           return resp;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => caches.match(request))
     );
     return;
   }
 
   // 3c. Other navigation/static – Cache First
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    caches.match(request).then((cached) => cached || fetch(request))
   );
 });
