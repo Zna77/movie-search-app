@@ -250,8 +250,17 @@ async function showDetails(id) {
   modalBody.innerHTML = "<p>Loading...</p>";
   modal.classList.add("show");
   try {
-    const res = await fetch(buildUrl(`/movie/${id}`));
-    const data = await res.json();
+    // 1) main movie details
+    const detailsRes = await fetch(buildUrl(`/movie/${id}`));
+    const data = await detailsRes.json();
+
+    // 2) fetch videos (trailers, teasers, etc.)
+    const vidsRes = await fetch(buildUrl(`/movie/${id}/videos`));
+    const vids = (await vidsRes.json()).results;
+    // pick the first YouTube trailer
+    const trailer = vids.find(
+      (v) => v.site === "YouTube" && v.type === "Trailer"
+    );
     const genres = data.genres.map((g) => g.name).join(", ");
     const rating = data.vote_average.toFixed(1).replace(".", ",");
     const hours = Math.floor(data.runtime / 60);
@@ -259,7 +268,8 @@ async function showDetails(id) {
     const runtimeStr =
       hours > 0 ? `${hours}h${mins ? ` ${mins}min` : ``}` : `${mins}min`;
 
-    modalBody.innerHTML = `
+    // build the details HTML
+    let html = `
       <h2>${data.title} (${data.release_date.slice(0, 4)})</h2>
       <p><img src="${
         data.poster_path
@@ -271,6 +281,22 @@ async function showDetails(id) {
       <p><strong>Genres:</strong> ${genres}</p>
       <p>${data.overview}</p>
     `;
+
+    // if we have a trailer, embed it:
+    if (trailer) {
+      html += `
+        <h3>Trailer</h3>
+        <div class="video-container">
+          <iframe
+            src="https://www.youtube.com/embed/${trailer.key}"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          ></iframe>
+        </div>
+      `;
+    }
+    modalBody.innerHTML = html;
   } catch {
     modalBody.innerHTML = "<p>Error loading details.</p>";
   }
