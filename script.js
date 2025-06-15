@@ -12,9 +12,10 @@ const favorites = new Set(
 );
 
 // Helper: TMDB URL builder (always direct)
-function buildUrl(path, queryParams = {}) {
-  const params = new URLSearchParams({ api_key: apiKey, ...queryParams });
-  return `https://api.themoviedb.org/3${path}?${params}`;
+
+function buildUrl(endpoint, queryParams = {}) {
+  const params = new URLSearchParams(queryParams).toString();
+  return `/api${endpoint}?${params}`;
 }
 
 // DOM Elements
@@ -255,7 +256,7 @@ async function showDetails(id) {
     const data = await detailsRes.json();
 
     // 2) fetch videos (trailers, teasers, etc.)
-    const vidsRes = await fetch(buildUrl(`/movie/${id}/videos`));
+    const vidsRes = await fetch(buildUrl("/movie/videos", { id }));
     const vids = (await vidsRes.json()).results;
     // pick the first YouTube trailer
     const trailer = vids.find(
