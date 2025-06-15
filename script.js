@@ -73,7 +73,7 @@ async function onType() {
   acList.innerHTML = "";
   if (q.length < 2) return;
   try {
-    const res = await fetch(buildUrl("/search/movie", { query: q, page: 1 }));
+    const res = await fetch(buildUrl("/search", { query: q, page: 1 }));
     const { results } = await res.json();
     results.slice(0, 5).forEach((m) => {
       const li = document.createElement("li");
@@ -148,7 +148,7 @@ async function fetchTrending(page = 1) {
   if (isLoading) return;
   isLoading = true;
   try {
-    const res = await fetch(buildUrl("/trending/movie/day", { page }));
+    const res = await fetch(buildUrl("/trending", { page }));
     const data = await res.json();
     totalPages = data.total_pages || 1;
     renderMovies(data.results);
@@ -164,7 +164,7 @@ async function searchMovies(query, page = 1) {
   if (isLoading) return;
   isLoading = true;
   try {
-    const res = await fetch(buildUrl("/search/movie", { query, page }));
+    const res = await fetch(buildUrl("/search", { query, page }));
     const data = await res.json();
     totalPages = data.total_pages || 1;
 
@@ -252,7 +252,7 @@ async function showDetails(id) {
   modal.classList.add("show");
   try {
     // 1) main movie details
-    const detailsRes = await fetch(buildUrl(`/movie/${id}`));
+    const detailsRes = await fetch(buildUrl("/movie", { id }));
     const data = await detailsRes.json();
 
     // 2) fetch videos (trailers, teasers, etc.)
