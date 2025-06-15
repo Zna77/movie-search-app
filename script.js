@@ -1,4 +1,4 @@
-// API key for local fallback
+// API key for local TMDB calls
 const apiKey = "fbed1e47b7b4825cba22123afb2690fe";
 
 // Pagination, Favorites & Autocomplete State
@@ -11,16 +11,10 @@ const favorites = new Set(
   JSON.parse(localStorage.getItem("favorites") || "[]")
 );
 
-// Helper: decide URL (local fallback vs serverless)
-function buildUrl(endpoint, queryParams = {}) {
-  const params = new URLSearchParams(queryParams).toString();
-  const hostname = location.hostname;
-  const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
-  const isGitHub = hostname.endsWith("github.io");
-  if (isLocal || isGitHub) {
-    return `https://api.themoviedb.org/3${endpoint}?api_key=${apiKey}&${params}`;
-  }
-  return `/api${endpoint}?${params}`;
+// Helper: TMDB URL builder (always direct)
+function buildUrl(path, queryParams = {}) {
+  const params = new URLSearchParams({ api_key: apiKey, ...queryParams });
+  return `https://api.themoviedb.org/3${path}?${params}`;
 }
 
 // DOM Elements
@@ -78,8 +72,7 @@ async function onType() {
   acList.innerHTML = "";
   if (q.length < 2) return;
   try {
-    const url = buildUrl("/search/movie", { query: q, page: 1 });
-    const res = await fetch(url);
+    const res = await fetch(buildUrl("/search/movie", { query: q, page: 1 }));
     const { results } = await res.json();
     results.slice(0, 5).forEach((m) => {
       const li = document.createElement("li");
@@ -154,8 +147,7 @@ async function fetchTrending(page = 1) {
   if (isLoading) return;
   isLoading = true;
   try {
-    const url = buildUrl("/trending/movie/day", { page });
-    const res = await fetch(url);
+    const res = await fetch(buildUrl("/trending/movie/day", { page }));
     const data = await res.json();
     totalPages = data.total_pages || 1;
     renderMovies(data.results);
@@ -171,10 +163,10 @@ async function searchMovies(query, page = 1) {
   if (isLoading) return;
   isLoading = true;
   try {
-    const url = buildUrl("/search/movie", { query, page });
-    const res = await fetch(url);
+    const res = await fetch(buildUrl("/search/movie", { query, page }));
     const data = await res.json();
     totalPages = data.total_pages || 1;
+
     if (data.results?.length) {
       let movies = data.results.slice();
       const year = yearFilter.value.trim();
@@ -217,11 +209,13 @@ function renderMovies(movies) {
   movies.forEach((movie) => {
     const card = document.createElement("div");
     card.classList.add("card");
+
     const img = document.createElement("img");
     img.src = movie.poster_path
       ? `https://image.tmdb.org/t/p/original${movie.poster_path}`
       : "https://via.placeholder.com/150x225?text=No+Image";
     img.alt = movie.title + " Poster";
+
     const star = document.createElement("span");
     star.classList.add("star");
     star.textContent = favorites.has(movie.id) ? "★" : "☆";
@@ -230,6 +224,7 @@ function renderMovies(movies) {
       toggleFavorite(movie.id);
       star.textContent = favorites.has(movie.id) ? "★" : "☆";
     });
+
     const info = document.createElement("div");
     info.classList.add("info");
     const titleEl = document.createElement("h3");
@@ -237,6 +232,7 @@ function renderMovies(movies) {
     const yearEl = document.createElement("p");
     yearEl.textContent = movie.release_date?.slice(0, 4) || "N/A";
     info.append(titleEl, yearEl);
+
     card.append(img, star, info);
     card.addEventListener("click", () => showDetails(movie.id));
     resultsSection.appendChild(card);
@@ -254,8 +250,7 @@ async function showDetails(id) {
   modalBody.innerHTML = "<p>Loading...</p>";
   modal.classList.add("show");
   try {
-    const url = buildUrl(`/movie/${id}`, {});
-    const res = await fetch(url);
+    const res = await fetch(buildUrl(`/movie/${id}`));
     const data = await res.json();
     const genres = data.genres.map((g) => g.name).join(", ");
     const rating = data.vote_average.toFixed(1).replace(".", ",");
@@ -263,6 +258,7 @@ async function showDetails(id) {
     const mins = data.runtime % 60;
     const runtimeStr =
       hours > 0 ? `${hours}h${mins ? ` ${mins}min` : ``}` : `${mins}min`;
+
     modalBody.innerHTML = `
       <h2>${data.title} (${data.release_date.slice(0, 4)})</h2>
       <p><img src="${
