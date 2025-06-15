@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Movie Search App</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Place this just inside <body> -->
+    <div class="theme-switch">
+      <input type="checkbox" id="theme-toggle" />
+      <label for="theme-toggle" class="switch"></label>
+    </div>
+
+    <div class="container">
+      <header>
+        <h1>🎬 Movie Search App</h1>
+      </header>
+
+      <!-- Search Bar -->
+      <form id="search-form" autocomplete="off">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search for movies..."
+          required
+        />
+        <div class="autocomplete">
+          <ul id="autocomplete-list"></ul>
+        </div>
+        <button type="submit">Search</button>
+      </form>
+
+      <!-- Filter & Sort Controls -->
+      <div class="controls">
+        <select id="sort-select">
+          <option value="pop_desc">Popularity ↓</option>
+          <option value="pop_asc">Popularity ↑</option>
+          <option value="date_desc">Release Date ↓</option>
+          <option value="date_asc">Release Date ↑</option>
+          <option value="title_asc">Title A–Z</option>
+          <option value="title_desc">Title Z–A</option>
+        </select>
+        <input
+          type="number"
+          id="year-filter"
+          placeholder="Year (e.g. 2020)"
+          min="1900"
+          max="2099"
+        />
+      </div>
+
+      <!-- Results Grid -->
+      <section id="results" class="results-grid"></section>
+
+      <!-- Movie Details Modal -->
+      <div id="modal" class="modal">
+        <div class="modal-content">
+          <span id="modal-close" class="modal-close">&times;</span>
+          <div id="modal-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <button id="back-to-top" class="back-to-top" aria-label="Back to top">
+      ⬆️
+    </button>
+
+    <script src="script.js"></script>
+  </body>
+</html>
