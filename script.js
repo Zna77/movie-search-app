@@ -1,5 +1,7 @@
+// API key for local fallback
+const apiKey = "fbed1e47b7b4825cba22123afb2690fe";
+
 // Pagination, Favorites & Autocomplete State
-// at top of file
 let isTrending = false;
 let currentQuery = "";
 let currentPage = 1;
@@ -9,53 +11,54 @@ const favorites = new Set(
   JSON.parse(localStorage.getItem("favorites") || "[]")
 );
 
-// 1) Grab the switch checkbox
-const themeSwitch = document.getElementById("theme-toggle");
-
-// 2) On load, initialize its state from localStorage
-const savedTheme = localStorage.getItem("theme") || "light";
-document.documentElement.setAttribute("data-theme", savedTheme);
-themeSwitch.checked = savedTheme === "dark";
-
-// 3) When the user toggles it, flip the theme, persist, and update CSS
-themeSwitch.addEventListener("change", () => {
-  const newTheme = themeSwitch.checked ? "dark" : "light";
-  document.documentElement.setAttribute("data-theme", newTheme);
-  localStorage.setItem("theme", newTheme);
-});
+// Helper: decide URL (local fallback vs serverless)
+function buildUrl(endpoint, queryParams = {}) {
+  const params = new URLSearchParams(queryParams).toString();
+  const local = ["localhost", "127.0.0.1"].includes(location.hostname);
+  if (local) {
+    return `https://api.themoviedb.org/3${endpoint}?api_key=${apiKey}&${params}`;
+  }
+  return `/api${endpoint}?${params}`;
+}
 
 // DOM Elements
+const themeSwitch = document.getElementById("theme-toggle");
 const form = document.getElementById("search-form");
 const input = document.getElementById("search-input");
 const resultsSection = document.getElementById("results");
 const acList = document.getElementById("autocomplete-list");
 const sortSelect = document.getElementById("sort-select");
 const yearFilter = document.getElementById("year-filter");
-
-// Page title clear-home behavior
 const title = document.querySelector("header h1");
+const backToTop = document.getElementById("back-to-top");
+const modal = document.getElementById("modal");
+const modalBody = document.getElementById("modal-body");
+const modalClose = document.getElementById("modal-close");
+
+// Theme toggle setup
+const savedTheme = localStorage.getItem("theme") || "light";
+document.documentElement.setAttribute("data-theme", savedTheme);
+themeSwitch.checked = savedTheme === "dark";
+themeSwitch.addEventListener("change", () => {
+  const newTheme = themeSwitch.checked ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", newTheme);
+  localStorage.setItem("theme", newTheme);
+});
+
+// Title click resets to trending home
 title.style.cursor = "pointer";
 title.addEventListener("click", () => {
-  // Reset input and controls
   input.value = "";
   acList.innerHTML = "";
   yearFilter.value = "";
   sortSelect.value = "pop_desc";
-  // Reset state and clear results
   currentQuery = "";
   currentPage = 1;
   totalPages = 1;
   resultsSection.innerHTML = "";
-
-  // switch back to trending mode
   isTrending = true;
   fetchTrending(1);
 });
-
-// Modal Elements
-const modal = document.getElementById("modal");
-const modalBody = document.getElementById("modal-body");
-const modalClose = document.getElementById("modal-close");
 
 // Debounce helper
 function debounce(fn, wait) {
@@ -66,16 +69,15 @@ function debounce(fn, wait) {
   };
 }
 
-// Autocomplete on type
+// Autocomplete
 input.addEventListener("input", debounce(onType, 300));
 async function onType() {
   const q = input.value.trim();
   acList.innerHTML = "";
   if (q.length < 2) return;
   try {
-    const res = await fetch(
-      `/api/search?query=${encodeURIComponent(q)}&page=1`
-    );
+    const url = buildUrl("/search/movie", { query: q, page: 1 });
+    const res = await fetch(url);
     const { results } = await res.json();
     results.slice(0, 5).forEach((m) => {
       const li = document.createElement("li");
@@ -92,19 +94,17 @@ async function onType() {
   }
 }
 
-// Clear autocomplete when clicking outside
 document.addEventListener("click", (e) => {
   if (!form.contains(e.target)) acList.innerHTML = "";
 });
 
-// Form submission
+// Form submit
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   acList.innerHTML = "";
   applyControls(input.value.trim());
 });
 
-// Apply filters & sort, then search
 function applyControls(query) {
   if (!query) return;
   isTrending = false;
@@ -114,16 +114,15 @@ function applyControls(query) {
   searchMovies(query, 1);
 }
 
-// Controls change triggers new search
 sortSelect.addEventListener("change", () => applyControls(currentQuery));
 yearFilter.addEventListener("input", () => applyControls(currentQuery));
 
-// On page load, show trending
+// Initial load: show trending
 document.addEventListener("DOMContentLoaded", () => {
   isTrending = true;
   currentPage = 1;
   resultsSection.innerHTML = "";
-  fetchTrending(currentPage);
+  fetchTrending(1);
 });
 
 // Infinite scroll
@@ -135,37 +134,26 @@ window.addEventListener("scroll", () => {
     scrollTop + window.innerHeight >= scrollHeight - 100
   ) {
     currentPage++;
-    if (isTrending) {
-      fetchTrending(currentPage);
-    } else {
-      searchMovies(currentQuery, currentPage);
-    }
+    if (isTrending) fetchTrending(currentPage);
+    else searchMovies(currentQuery, currentPage);
   }
 });
 
-const backToTop = document.getElementById("back-to-top");
-
-// Show/hide button on scroll
+// Back to top
+backToTop.addEventListener("click", () =>
+  window.scrollTo({ top: 0, behavior: "smooth" })
+);
 window.addEventListener("scroll", () => {
-  if (window.scrollY > 300) {
-    backToTop.classList.add("show");
-  } else {
-    backToTop.classList.remove("show");
-  }
+  backToTop.classList.toggle("show", window.scrollY > 300);
 });
 
-// Smooth scroll to top on click
-backToTop.addEventListener("click", () => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-});
-
-// Fetch & render trending movies (daily)
+// Fetch trending
 async function fetchTrending(page = 1) {
   if (isLoading) return;
   isLoading = true;
-
   try {
-    const res = await fetch(`/api/trending?page=${page}`);
+    const url = buildUrl("/trending/movie/day", { page });
+    const res = await fetch(url);
     const data = await res.json();
     totalPages = data.total_pages || 1;
     renderMovies(data.results);
@@ -176,27 +164,19 @@ async function fetchTrending(page = 1) {
   }
 }
 
-// Fetch movies with pagination
+// Search movies
 async function searchMovies(query, page = 1) {
   if (isLoading) return;
   isLoading = true;
   try {
-    const res = await fetch(
-      `/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}`
-    );
-
+    const url = buildUrl("/search/movie", { query, page });
+    const res = await fetch(url);
     const data = await res.json();
     totalPages = data.total_pages || 1;
-
-    if (data.results && data.results.length) {
-      // client-side filter & sort
+    if (data.results?.length) {
       let movies = data.results.slice();
       const year = yearFilter.value.trim();
-      if (year) {
-        movies = movies.filter(
-          (m) => m.release_date && m.release_date.startsWith(year)
-        );
-      }
+      if (year) movies = movies.filter((m) => m.release_date?.startsWith(year));
       switch (sortSelect.value) {
         case "pop_asc":
           movies.sort((a, b) => a.popularity - b.popularity);
@@ -222,9 +202,7 @@ async function searchMovies(query, page = 1) {
           break;
       }
       renderMovies(movies);
-    } else if (page === 1) {
-      showNoResults("No movies found.");
-    }
+    } else if (page === 1) showNoResults("No movies found.");
   } catch {
     if (page === 1) showNoResults("Error fetching data.");
   } finally {
@@ -232,18 +210,16 @@ async function searchMovies(query, page = 1) {
   }
 }
 
-// Render movie cards
+// Render cards
 function renderMovies(movies) {
   movies.forEach((movie) => {
     const card = document.createElement("div");
     card.classList.add("card");
-
     const img = document.createElement("img");
     img.src = movie.poster_path
       ? `https://image.tmdb.org/t/p/original${movie.poster_path}`
       : "https://via.placeholder.com/150x225?text=No+Image";
-    img.alt = `${movie.title} Poster`;
-
+    img.alt = movie.title + " Poster";
     const star = document.createElement("span");
     star.classList.add("star");
     star.textContent = favorites.has(movie.id) ? "★" : "☆";
@@ -252,17 +228,13 @@ function renderMovies(movies) {
       toggleFavorite(movie.id);
       star.textContent = favorites.has(movie.id) ? "★" : "☆";
     });
-
     const info = document.createElement("div");
     info.classList.add("info");
     const titleEl = document.createElement("h3");
     titleEl.textContent = movie.title;
     const yearEl = document.createElement("p");
-    yearEl.textContent = movie.release_date
-      ? movie.release_date.slice(0, 4)
-      : "N/A";
+    yearEl.textContent = movie.release_date?.slice(0, 4) || "N/A";
     info.append(titleEl, yearEl);
-
     card.append(img, star, info);
     card.addEventListener("click", () => showDetails(movie.id));
     resultsSection.appendChild(card);
@@ -271,35 +243,31 @@ function renderMovies(movies) {
 
 // Toggle favorite
 function toggleFavorite(id) {
-  if (favorites.has(id)) favorites.delete(id);
-  else favorites.add(id);
+  favorites.has(id) ? favorites.delete(id) : favorites.add(id);
   localStorage.setItem("favorites", JSON.stringify([...favorites]));
 }
 
-// Show movie details modal
+// Show details
 async function showDetails(id) {
   modalBody.innerHTML = "<p>Loading...</p>";
   modal.classList.add("show");
   try {
-    // use your Vercel function instead:
-    const res = await fetch(`/api/movie/${id}`);
+    const url = buildUrl(`/movie/${id}`, {});
+    const res = await fetch(url);
     const data = await res.json();
     const genres = data.genres.map((g) => g.name).join(", ");
-
-    // right after fetching `data`
-    const rating = data.vote_average.toFixed(1).replace(".", ".");
+    const rating = data.vote_average.toFixed(1).replace(".", ",");
     const hours = Math.floor(data.runtime / 60);
     const mins = data.runtime % 60;
     const runtimeStr =
-      hours > 0 ? `${hours}h${mins ? ` ${mins}min` : ""}` : `${mins}min`;
-
+      hours > 0 ? `${hours}h${mins ? ` ${mins}min` : ``}` : `${mins}min`;
     modalBody.innerHTML = `
       <h2>${data.title} (${data.release_date.slice(0, 4)})</h2>
       <p><img src="${
         data.poster_path
           ? `https://image.tmdb.org/t/p/original${data.poster_path}`
-          : "https://via.placeholder.com/200x300?text=No+Image"
-      }" alt="${data.title} Poster" /></p>
+          : `https://via.placeholder.com/200x300?text=No+Image`
+      }" alt="${data.title} Poster"/></p>
       <p><strong>Rating:</strong> ${rating} / 10</p>
       <p><strong>Runtime:</strong> ${runtimeStr}</p>
       <p><strong>Genres:</strong> ${genres}</p>
@@ -316,19 +284,13 @@ modal.addEventListener("click", (e) => {
   if (e.target === modal) modal.classList.remove("show");
 });
 
-// Show no results message
+// No results
 function showNoResults(msg) {
   resultsSection.innerHTML = `<p class="no-results">${msg}</p>`;
 }
 
-// grab it once
+// Hide theme switch on scroll
 const themeSwitchEl = document.querySelector(".theme-switch");
-
-// on scroll: if user has scrolled past 100px, hide it; otherwise show it
 window.addEventListener("scroll", () => {
-  if (window.scrollY > 100) {
-    themeSwitchEl.classList.add("hidden");
-  } else {
-    themeSwitchEl.classList.remove("hidden");
-  }
+  themeSwitchEl.classList.toggle("hidden", window.scrollY > 100);
 });
