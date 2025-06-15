@@ -12,7 +12,6 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- Place this just inside <body> -->
     <div class="theme-switch">
       <input type="checkbox" id="theme-toggle" />
       <label for="theme-toggle" class="switch"></label>
@@ -23,7 +22,6 @@
         <h1>🎬 Movie Search App</h1>
       </header>
 
-      <!-- Search Bar -->
       <form id="search-form" autocomplete="off">
         <input
           type="text"
@@ -37,7 +35,6 @@
         <button type="submit">Search</button>
       </form>
 
-      <!-- Filter & Sort Controls -->
       <div class="controls">
         <select id="sort-select">
           <option value="pop_desc">Popularity ↓</option>
@@ -56,10 +53,8 @@
         />
       </div>
 
-      <!-- Results Grid -->
       <section id="results" class="results-grid"></section>
 
-      <!-- Movie Details Modal -->
       <div id="modal" class="modal">
         <div class="modal-content">
           <span id="modal-close" class="modal-close">&times;</span>
@@ -75,10 +70,15 @@
     <script src="script.js" defer></script>
     <script>
       if ("serviceWorker" in navigator) {
+        // Register service worker from the same directory as index.html
         navigator.serviceWorker
-          .register("sw.js", { scope: "./" })
-          .then(() => console.log("SW registered"))
-          .catch(console.error);
+          .register("./sw.js")
+          .then((reg) =>
+            console.log("Service Worker registered with scope:", reg.scope)
+          )
+          .catch((err) =>
+            console.error("Service Worker registration failed:", err)
+          );
       }
     </script>
   </body>
