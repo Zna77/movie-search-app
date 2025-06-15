@@ -152,7 +152,7 @@ async function fetchTrending(page = 1) {
   if (isLoading) return;
   isLoading = true;
   try {
-    const url = buildUrl("/trending/movie/day", { page });
+    const url = buildUrl("/trending", { page });
     const res = await fetch(url);
     const data = await res.json();
     totalPages = data.total_pages || 1;
@@ -169,7 +169,7 @@ async function searchMovies(query, page = 1) {
   if (isLoading) return;
   isLoading = true;
   try {
-    const url = buildUrl("/search/movie", { query, page });
+    const url = buildUrl("/search", { query, page });
     const res = await fetch(url);
     const data = await res.json();
     totalPages = data.total_pages || 1;
@@ -252,7 +252,7 @@ async function showDetails(id) {
   modalBody.innerHTML = "<p>Loading...</p>";
   modal.classList.add("show");
   try {
-    const url = buildUrl(`/movie/${id}`, {});
+    const url = buildUrl("/movie", { id });
     const res = await fetch(url);
     const data = await res.json();
     const genres = data.genres.map((g) => g.name).join(", ");
