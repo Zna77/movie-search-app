@@ -372,3 +372,20 @@ header h1 {
     font-size: 1.5rem;
   }
 }
+
+/* responsive YouTube embed inside modal */
+.video-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 aspect */
+  margin-top: 1rem;
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
