@@ -256,7 +256,7 @@ async function showDetails(id) {
     const data = await detailsRes.json();
 
     // 2) fetch videos (trailers, teasers, etc.)
-    const vidsRes = await fetch(buildUrl("/movie/videos", { id }));
+    const vidsRes = await fetch(buildUrl("/videos", { id }));
     const vids = (await vidsRes.json()).results;
     // pick the first YouTube trailer
     const trailer = vids.find(
