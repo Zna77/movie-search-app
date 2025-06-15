@@ -1,5 +1,3 @@
-const apiKey = "fbed1e47b7b4825cba22123afb2690fe";
-
 // Pagination, Favorites & Autocomplete State
 // at top of file
 let isTrending = false;
@@ -76,9 +74,7 @@ async function onType() {
   if (q.length < 2) return;
   try {
     const res = await fetch(
-      `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(
-        q
-      )}&page=1`
+      `/api/search?query=${encodeURIComponent(q)}&page=1`
     );
     const { results } = await res.json();
     results.slice(0, 5).forEach((m) => {
@@ -169,9 +165,7 @@ async function fetchTrending(page = 1) {
   isLoading = true;
 
   try {
-    const res = await fetch(
-      `https://api.themoviedb.org/3/trending/movie/day?api_key=${apiKey}&page=${page}`
-    );
+    const res = await fetch(`/api/trending?page=${page}`);
     const data = await res.json();
     totalPages = data.total_pages || 1;
     renderMovies(data.results);
@@ -188,10 +182,9 @@ async function searchMovies(query, page = 1) {
   isLoading = true;
   try {
     const res = await fetch(
-      `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(
-        query
-      )}&page=${page}`
+      `/api/search?query=${encodeURIComponent(currentQuery)}&page=${page}`
     );
+
     const data = await res.json();
     totalPages = data.total_pages || 1;
 
@@ -288,9 +281,8 @@ async function showDetails(id) {
   modalBody.innerHTML = "<p>Loading...</p>";
   modal.classList.add("show");
   try {
-    const res = await fetch(
-      `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}`
-    );
+    // use your Vercel function instead:
+    const res = await fetch(`/api/movie/${id}`);
     const data = await res.json();
     const genres = data.genres.map((g) => g.name).join(", ");
 
