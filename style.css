@@ -203,6 +203,36 @@ header h1 {
   max-width: 120px;
 }
 
+/* Genre dropdown */
+#genre-select {
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-color);
+  cursor: pointer;
+  min-width: 200px;
+  transition: border-color 0.3s, background 0.3s;
+}
+
+#genre-select:hover {
+  border-color: var(--accent-hover);
+}
+
+#genre-select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  background: var(--card-bg);
+}
+
+/* Mobile: full width */
+@media (max-width: 600px) {
+  #genre-select {
+    width: 100%;
+  }
+}
+
 /* Results Grid */
 .results-grid {
   display: grid;
