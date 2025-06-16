@@ -1,15 +1,15 @@
 const CACHE_NAME = "movie-app-v1";
 
-// List of assets to pre-cache (use relative paths within the SW scope)
+// Assets to precache
 const STATIC_ASSETS = [
-  "./", // root of the app
-  "./index.html", // homepage
-  "./style.css", // CSS
-  "./script.js", // main JS
-  "./sw.js", // Service Worker script
+  "./",
+  "./index.html",
+  "./style.css",
+  "./script.js",
+  "./sw.js",
 ];
 
-// 1. Pre-cache app shell
+// 1) Precache app shell
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -20,7 +20,7 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// 2. Clean up old caches
+// 2) Cleanup old caches
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -32,46 +32,41 @@ self.addEventListener("activate", (event) => {
             .map((key) => caches.delete(key))
         )
       )
+      .then(() => self.clients.claim())
   );
 });
 
-// 3. Runtime caching for images and API
+// 3) Fetch handler
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 3a. TMDB images – Cache First
+  // 3a) Bypass caching for API calls and TMDB API
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.origin.includes("api.themoviedb.org")
+  ) {
+    // Let the browser handle it (network-only)
+    return;
+  }
+
+  // 3b) TMDB image caching: cache-first
   if (url.origin === "https://image.tmdb.org") {
     event.respondWith(
-      caches.match(request).then(
-        (cached) =>
-          cached ||
-          fetch(request).then((resp) => {
-            return caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, resp.clone());
-              return resp;
-            });
-          })
-      )
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((resp) => {
+          return caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, resp.clone());
+            return resp;
+          });
+        });
+      })
     );
     return;
   }
 
-  // 3b. API calls – Network First with fallback to cache
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((resp) => {
-          const copy = resp.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return resp;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  // 3c. Other navigation/static – Cache First
+  // 3c) Other assets: cache-first
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request))
   );

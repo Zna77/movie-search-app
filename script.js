@@ -16,6 +16,11 @@ let isLoading = false;
 
 /**
  * Build URL for TMDB (local/GH) or /api (Vercel).
+ * Handles four endpoints:
+ *  - search
+ *  - trending
+ *  - movie
+ *  - videos
  */
 function buildUrl(endpoint, qp = {}) {
   const params = new URLSearchParams(qp).toString();
@@ -24,11 +29,11 @@ function buildUrl(endpoint, qp = {}) {
   const isGH = host.endsWith("github.io");
   const base = "https://api.themoviedb.org/3";
 
-  // Normalize: drop any leading slash
+  // Normalize endpoint key (drop leading slash)
   const key = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
 
-  // LOCAL or GH-PAGES → direct TMDB
   if (isLocal || isGH) {
+    // Direct TMDB calls in local/GH
     switch (key) {
       case "search":
         return `${base}/search/movie?api_key=${apiKey}&${params}`;
@@ -39,16 +44,16 @@ function buildUrl(endpoint, qp = {}) {
       case "videos":
         return `${base}/movie/${qp.id}/videos?api_key=${apiKey}&${params}`;
       default:
-        console.warn("buildUrl: unrecognized endpoint", endpoint);
+        console.warn("buildUrl: unrecognized endpoint", key);
         return `${base}/${key}?api_key=${apiKey}&${params}`;
     }
   }
 
-  // PRODUCTION (Vercel) → serverless
-  return `/api${
-    endpoint.startsWith("/") ? endpoint : "/" + endpoint
-  }?${params}`;
+  // Production: serverless functions on Vercel
+  const route = endpoint.startsWith("/") ? endpoint : "/" + endpoint;
+  return `/api${route}?${params}`;
 }
+
 function debounce(fn, delay) {
   let timer;
   return (...args) => {
@@ -198,7 +203,7 @@ async function fetchTrending(page = 1) {
     const res = await fetch(buildUrl("/trending", { page }));
     const data = await res.json();
     totalPages = data.total_pages || 1;
-    renderMovies(data.results);
+    renderMovies(data.results || []);
   } catch {
     if (page === 1) showNoResults("Error loading trending movies.");
   } finally {
