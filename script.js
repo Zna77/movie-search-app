@@ -2,53 +2,53 @@
 // CONFIG & STATE
 //----------------------------------------------------------------------------
 
-// Your TMDB key (only used for local/GH-Pages fallback)
+// Your TMDB key (used only in local/GH fallback)
 const apiKey = "fbed1e47b7b4825cba22123afb2690fe";
-
-// Paging / search state
 let isTrending = false;
 let currentQuery = "";
 let currentPage = 1;
 let totalPages = 1;
 let isLoading = false;
 
-// Favorites persisted in localStorage
-const favorites = new Set(
-  JSON.parse(localStorage.getItem("favorites") || "[]")
-);
-
 //----------------------------------------------------------------------------
 // HELPERS
 //----------------------------------------------------------------------------
 
 /**
- * Build a URL to TMDB or your Vercel serverless API based on environment.
- * - Localhost / github.io → direct TMDB (must embed apiKey)
- * - Else → call /api routes
+ * Build URL for TMDB (local/GH) or /api (Vercel).
  */
 function buildUrl(endpoint, qp = {}) {
   const params = new URLSearchParams(qp).toString();
   const host = location.hostname;
   const isLocal = host === "localhost" || host.startsWith("127.");
   const isGH = host.endsWith("github.io");
+  const base = "https://api.themoviedb.org/3";
 
-  // FALLBACK: direct TMDB
+  // Normalize: drop any leading slash
+  const key = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
+
+  // LOCAL or GH-PAGES → direct TMDB
   if (isLocal || isGH) {
-    const base = "https://api.themoviedb.org/3";
-    if (endpoint === "/videos") {
-      // videos endpoint needs /movie/{id}/videos
-      return `${base}/movie/${qp.id}/videos?api_key=${apiKey}&${params}`;
+    switch (key) {
+      case "search":
+        return `${base}/search/movie?api_key=${apiKey}&${params}`;
+      case "trending":
+        return `${base}/trending/movie/day?api_key=${apiKey}&${params}`;
+      case "movie":
+        return `${base}/movie/${qp.id}?api_key=${apiKey}&${params}`;
+      case "videos":
+        return `${base}/movie/${qp.id}/videos?api_key=${apiKey}&${params}`;
+      default:
+        console.warn("buildUrl: unrecognized endpoint", endpoint);
+        return `${base}/${key}?api_key=${apiKey}&${params}`;
     }
-    return `${base}${endpoint}?api_key=${apiKey}&${params}`;
   }
 
-  // PRODUCTION: serverless
-  return `/api${endpoint}?${params}`;
+  // PRODUCTION (Vercel) → serverless
+  return `/api${
+    endpoint.startsWith("/") ? endpoint : "/" + endpoint
+  }?${params}`;
 }
-
-/**
- * Debounce utility
- */
 function debounce(fn, delay) {
   let timer;
   return (...args) => {
@@ -91,33 +91,27 @@ themeSwitch.addEventListener("change", () => {
 // EVENT LISTENERS
 //----------------------------------------------------------------------------
 
-// Clicking the title resets to trending
 titleEl.style.cursor = "pointer";
 titleEl.addEventListener("click", () => {
   resetToTrending();
   fetchTrending(1);
 });
 
-// Autocomplete on input
 input.addEventListener("input", debounce(handleType, 300));
 
-// Hide autocomplete when clicking outside
 document.addEventListener("click", (e) => {
   if (!form.contains(e.target)) acList.innerHTML = "";
 });
 
-// Form submit
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   acList.innerHTML = "";
   startSearch(input.value.trim());
 });
 
-// Sort & year filters
 sortSelect.addEventListener("change", () => startSearch(currentQuery));
 yearFilter.addEventListener("input", () => startSearch(currentQuery));
 
-// Infinite scroll
 window.addEventListener("scroll", () => {
   const { scrollTop, scrollHeight } = document.documentElement;
   if (
@@ -132,7 +126,6 @@ window.addEventListener("scroll", () => {
   }
 });
 
-// Back to top
 backToTopBtn.addEventListener("click", () =>
   window.scrollTo({ top: 0, behavior: "smooth" })
 );
@@ -140,15 +133,10 @@ window.addEventListener("scroll", () => {
   backToTopBtn.classList.toggle("show", window.scrollY > 300);
 });
 
-// Modal close
 modalCloseBtn.addEventListener("click", () => modal.classList.remove("show"));
 modal.addEventListener("click", (e) => {
   if (e.target === modal) modal.classList.remove("show");
 });
-
-//----------------------------------------------------------------------------
-// INITIAL LOAD
-//----------------------------------------------------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
   resetToTrending();
@@ -156,7 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 //----------------------------------------------------------------------------
-// FUNCTIONS
+// CORE LOGIC
 //----------------------------------------------------------------------------
 
 function resetToTrending() {
@@ -189,7 +177,7 @@ async function handleType() {
       acList.appendChild(li);
     });
   } catch {
-    // silent
+    /* silent */
   }
 }
 
@@ -225,13 +213,9 @@ async function searchMovies(query, page = 1) {
     const res = await fetch(buildUrl("/search", { query, page }));
     const data = await res.json();
     totalPages = data.total_pages || 1;
-
     let movies = (data.results || []).slice();
     const year = yearFilter.value.trim();
-    if (year) {
-      movies = movies.filter((m) => m.release_date?.startsWith(year));
-    }
-    // sorting
+    if (year) movies = movies.filter((m) => m.release_date?.startsWith(year));
     switch (sortSelect.value) {
       case "pop_asc":
         movies.sort((a, b) => a.popularity - b.popularity);
@@ -256,7 +240,6 @@ async function searchMovies(query, page = 1) {
         movies.sort((a, b) => b.title.localeCompare(a.title));
         break;
     }
-
     if (movies.length) renderMovies(movies);
     else if (page === 1) showNoResults("No movies found.");
   } catch {
@@ -270,26 +253,12 @@ function renderMovies(movies) {
   movies.forEach((movie) => {
     const card = document.createElement("div");
     card.className = "card";
-
     const img = document.createElement("img");
     img.loading = "lazy";
     img.src = movie.poster_path
       ? `https://image.tmdb.org/t/p/original${movie.poster_path}`
       : "https://via.placeholder.com/150x225?text=No+Image";
     img.alt = movie.title;
-
-    const star = document.createElement("span");
-    star.className = "star";
-    star.textContent = favorites.has(movie.id) ? "★" : "☆";
-    star.addEventListener("click", (e) => {
-      e.stopPropagation();
-      favorites.has(movie.id)
-        ? favorites.delete(movie.id)
-        : favorites.add(movie.id);
-      localStorage.setItem("favorites", JSON.stringify([...favorites]));
-      star.textContent = favorites.has(movie.id) ? "★" : "☆";
-    });
-
     const info = document.createElement("div");
     info.className = "info";
     const h3 = document.createElement("h3");
@@ -297,8 +266,7 @@ function renderMovies(movies) {
     const p = document.createElement("p");
     p.textContent = movie.release_date?.slice(0, 4) || "N/A";
     info.append(h3, p);
-
-    card.append(img, star, info);
+    card.append(img, info);
     card.addEventListener("click", () => showDetails(movie.id));
     resultsGrid.appendChild(card);
   });
@@ -307,26 +275,20 @@ function renderMovies(movies) {
 async function showDetails(id) {
   modalBody.innerHTML = "<p>Loading...</p>";
   modal.classList.add("show");
-
   try {
-    // details
     const dRes = await fetch(buildUrl("/movie", { id }));
     const data = await dRes.json();
-
-    // videos
     const vRes = await fetch(buildUrl("/videos", { id }));
     const vids = (await vRes.json()).results;
     const trailer = vids.find(
       (v) => v.site === "YouTube" && v.type === "Trailer"
     );
-
     const genres = data.genres.map((g) => g.name).join(", ");
     const rating = data.vote_average.toFixed(1).replace(".", ",");
     const hours = Math.floor(data.runtime / 60);
     const mins = data.runtime % 60;
     const runtimeStr =
       hours > 0 ? `${hours}h${mins ? ` ${mins}min` : ``}` : `${mins}min`;
-
     let html = `
       <h2>${data.title} (${data.release_date.slice(0, 4)})</h2>
       <p><img src="${
@@ -339,7 +301,6 @@ async function showDetails(id) {
       <p><strong>Genres:</strong> ${genres}</p>
       <p>${data.overview}</p>
     `;
-
     if (trailer) {
       html += `
         <h3>Trailer</h3>
@@ -353,7 +314,6 @@ async function showDetails(id) {
         </div>
       `;
     }
-
     modalBody.innerHTML = html;
   } catch (err) {
     console.error("Detail load error:", err);
