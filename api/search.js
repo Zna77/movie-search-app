@@ -1,3 +1,4 @@
+console.log("TMDB key is:", process.env.TMDB_API_KEY?.slice(0, 4) + "…");
 // api/search.js
 export default async function handler(req, res) {
   const { query = "", page = "1" } = req.query;
