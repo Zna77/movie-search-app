@@ -9,7 +9,7 @@ let totalPages = 1;
 let isLoading = false;
 
 //----------------------------------------------------------------------------
-// HELPERS
+// HELPERS hi
 //----------------------------------------------------------------------------
 
 /** Build URL for TMDB (local/GH fallback) or /api (Vercel), including genres */
