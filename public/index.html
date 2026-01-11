@@ -75,7 +75,7 @@
       if ("serviceWorker" in navigator) {
         // Register service worker from the same directory as index.html
         navigator.serviceWorker
-          .register("./sw.js")
+          .register("/sw.js", { updateViaCache: "none" })
           .then((reg) =>
             console.log("Service Worker registered with scope:", reg.scope)
           )
