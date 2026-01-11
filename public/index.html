@@ -70,18 +70,39 @@
       ⬆️
     </button>
 
+    <script src="config.js"></script>
     <script src="script.js" defer></script>
     <script>
       if ("serviceWorker" in navigator) {
         // Register service worker from the same directory as index.html
         navigator.serviceWorker
           .register("/sw.js", { updateViaCache: "none" })
-          .then((reg) =>
-            console.log("Service Worker registered with scope:", reg.scope)
-          )
+          .then((reg) => {
+            console.log("Service Worker registered with scope:", reg.scope);
+            reg.update();
+            if (reg.waiting) {
+              reg.waiting.postMessage({ type: "SKIP_WAITING" });
+            }
+            reg.addEventListener("updatefound", () => {
+              const newWorker = reg.installing;
+              if (!newWorker) return;
+              newWorker.addEventListener("statechange", () => {
+                if (newWorker.state === "installed" && reg.waiting) {
+                  reg.waiting.postMessage({ type: "SKIP_WAITING" });
+                }
+              });
+            });
+          })
           .catch((err) =>
             console.error("Service Worker registration failed:", err)
           );
+
+        let hasRefreshed = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (hasRefreshed) return;
+          hasRefreshed = true;
+          window.location.reload();
+        });
       }
     </script>
   </body>

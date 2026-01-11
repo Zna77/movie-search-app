@@ -1,6 +1,10 @@
 //----------------------------------------------------------------------------
 // CONFIG & STATE
 //----------------------------------------------------------------------------
+const APP_CONFIG = window.APP_CONFIG || {};
+const API_BASE = (APP_CONFIG.apiBase || "").replace(/\/$/, "");
+const TMDB_API_KEY = APP_CONFIG.tmdbApiKey || "";
+const TMDB_BASE = "https://api.themoviedb.org/3";
 let isTrending = false;
 let currentQuery = "";
 let currentPage = 1;
@@ -15,7 +19,31 @@ let isLoading = false;
 function buildUrl(endpoint, qp = {}) {
   const params = new URLSearchParams(qp).toString();
   const route = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  return params ? `/api${route}?${params}` : `/api${route}`;
+  if (TMDB_API_KEY) {
+    const key = route.replace(/^\//, "");
+    const tmdbParams = new URLSearchParams(qp);
+    tmdbParams.delete("id");
+    const tmdbQuery = tmdbParams.toString();
+    const tmdbQueryPart = tmdbQuery ? `&${tmdbQuery}` : "";
+    switch (key) {
+      case "search":
+        return `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}${tmdbQueryPart}`;
+      case "trending":
+        return `${TMDB_BASE}/trending/movie/day?api_key=${TMDB_API_KEY}${tmdbQueryPart}`;
+      case "movie":
+        return `${TMDB_BASE}/movie/${qp.id}?api_key=${TMDB_API_KEY}${tmdbQueryPart}`;
+      case "videos":
+        return `${TMDB_BASE}/movie/${qp.id}/videos?api_key=${TMDB_API_KEY}${tmdbQueryPart}`;
+      case "genres":
+        return `${TMDB_BASE}/genre/movie/list?api_key=${TMDB_API_KEY}${tmdbQueryPart}`;
+      default:
+        return `${TMDB_BASE}/${key}?api_key=${TMDB_API_KEY}${tmdbQueryPart}`;
+    }
+  }
+
+  const base = API_BASE || "";
+  const url = `${base}/api${route}`;
+  return params ? `${url}?${params}` : url;
 }
 
 function debounce(fn, delay) {

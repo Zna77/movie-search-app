@@ -1,4 +1,4 @@
-const VERSION = "v2";
+const VERSION = "v3";
 const STATIC_CACHE = `movie-app-static-${VERSION}`;
 const RUNTIME_CACHE = `movie-app-runtime-${VERSION}`;
 const IMAGE_CACHE = `movie-app-images-${VERSION}`;
@@ -45,7 +45,7 @@ async function cacheFirst(request, cacheName) {
   return resp;
 }
 
-async function networkFirst(request, cacheName) {
+async function networkFirst(request, cacheName, fallbackRequest) {
   const cache = await caches.open(cacheName);
   try {
     const resp = await fetch(request);
@@ -53,7 +53,9 @@ async function networkFirst(request, cacheName) {
     return resp;
   } catch {
     const cached = await cache.match(request);
-    return cached || cache.match("/index.html");
+    if (cached) return cached;
+    if (fallbackRequest) return cache.match(fallbackRequest);
+    return Response.error();
   }
 }
 
@@ -77,17 +79,21 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Bypass caching for API calls and TMDB API
-  if (
-    url.pathname.startsWith("/api/") ||
-    url.origin.includes("api.themoviedb.org")
-  ) {
+  // API calls: network-first with cache fallback
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(networkFirst(request, RUNTIME_CACHE));
+    return;
+  }
+
+  // Direct TMDB API calls (only if enabled in config): network-first with cache fallback
+  if (url.origin.includes("api.themoviedb.org")) {
+    event.respondWith(networkFirst(request, RUNTIME_CACHE));
     return;
   }
 
   // HTML navigations: network-first so new deploys show up quickly
   if (request.mode === "navigate" || request.destination === "document") {
-    event.respondWith(networkFirst(request, STATIC_CACHE));
+    event.respondWith(networkFirst(request, STATIC_CACHE, "/index.html"));
     return;
   }
 
@@ -114,4 +120,10 @@ self.addEventListener("fetch", (event) => {
 
   // Other requests: stale-while-revalidate
   event.respondWith(staleWhileRevalidate(request, RUNTIME_CACHE));
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });

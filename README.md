@@ -15,6 +15,11 @@ node dev-server.js
 
 Then open `http://localhost:3000`. The server auto-loads `.env` if present.
 
+## VS Code Live Server
+Live Server does not provide `/api`, so you need one of the following:
+- Preferred: run `node dev-server.js` instead of Live Server.
+- If you must use Live Server, set `tmdbApiKey` in `public/config.js` for direct TMDB calls.
+
 ## Project structure
 - `public/` static files (HTML, CSS, JS, service worker).
 - `api/` serverless functions for Vercel deployments.
