@@ -1,7 +1,6 @@
 //----------------------------------------------------------------------------
 // CONFIG & STATE
 //----------------------------------------------------------------------------
-const apiKey = "fbed1e47b7b4825cba22123afb2690fe";
 let isTrending = false;
 let currentQuery = "";
 let currentPage = 1;
@@ -12,34 +11,11 @@ let isLoading = false;
 // HELPERS hi
 //----------------------------------------------------------------------------
 
-/** Build URL for TMDB (local/GH fallback) or /api (Vercel), including genres */
+/** Build URL for /api endpoints with query params */
 function buildUrl(endpoint, qp = {}) {
   const params = new URLSearchParams(qp).toString();
-  const host = location.hostname;
-  const isLocal = host === "localhost" || host.startsWith("127.");
-  const isGH = host.endsWith("github.io");
-  const base = "https://api.themoviedb.org/3";
-  const key = endpoint.replace(/^\//, "");
-
-  if (isLocal || isGH) {
-    switch (key) {
-      case "search":
-        return `${base}/search/movie?api_key=${apiKey}&${params}`;
-      case "trending":
-        return `${base}/trending/movie/day?api_key=${apiKey}&${params}`;
-      case "movie":
-        return `${base}/movie/${qp.id}?api_key=${apiKey}&${params}`;
-      case "videos":
-        return `${base}/movie/${qp.id}/videos?api_key=${apiKey}&${params}`;
-      case "genres":
-        return `${base}/genre/movie/list?api_key=${apiKey}&${params}`;
-      default:
-        return `${base}/${key}?api_key=${apiKey}&${params}`;
-    }
-  }
-
   const route = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  return `/api${route}?${params}`;
+  return params ? `/api${route}?${params}` : `/api${route}`;
 }
 
 function debounce(fn, delay) {
@@ -304,17 +280,25 @@ async function showDetails(id) {
       fetch(buildUrl("/movie", { id })),
       fetch(buildUrl("/videos", { id })),
     ]);
-    const data = await dRes.json(),
-      vids = (await vRes.json()).results;
+    const data = await dRes.json();
+    const vids = (await vRes.json()).results || [];
     const trailer = vids.find(
       (v) => v.site === "YouTube" && v.type === "Trailer"
     );
-    const genres = data.genres.map((g) => g.name).join(", ");
-    const rating = data.vote_average.toFixed(1).replace(".", ",");
-    const h = Math.floor(data.runtime / 60),
-      m = data.runtime % 60;
-    const runtime = h > 0 ? `${h}h${m ? ` ${m}min` : ``}` : `${m}min`;
-    let html = `<h2>${data.title} (${data.release_date.slice(0, 4)})</h2>
+    const genres = (data.genres || []).map((g) => g.name).join(", ");
+    const rating = Number.isFinite(data.vote_average)
+      ? data.vote_average.toFixed(1).replace(".", ",")
+      : "N/A";
+    const totalMinutes = Number.isFinite(data.runtime) ? data.runtime : 0;
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const runtime = totalMinutes
+      ? h > 0
+        ? `${h}h${m ? ` ${m}min` : ``}`
+        : `${m}min`
+      : "N/A";
+    const year = data.release_date ? data.release_date.slice(0, 4) : "N/A";
+    let html = `<h2>${data.title} (${year})</h2>
       <p><img src="${
         data.poster_path
           ? `https://image.tmdb.org/t/p/original${data.poster_path}`
@@ -322,7 +306,7 @@ async function showDetails(id) {
       }" alt="${data.title} Poster"/></p>
       <p><strong>Rating:</strong> ${rating} / 10</p>
       <p><strong>Runtime:</strong> ${runtime}</p>
-      <p><strong>Genres:</strong> ${genres}</p>
+      <p><strong>Genres:</strong> ${genres || "N/A"}</p>
       <p>${data.overview}</p>`;
     if (trailer) {
       html += `<h3>Trailer</h3><div class="video-container"><iframe src="https://www.youtube.com/embed/${trailer.key}" frameborder="0" allowfullscreen></iframe></div>`;
