@@ -1,30 +1,39 @@
-# Movie Search App
+# Movie & Series Search App (Next.js)
 
-Search, filter, and explore movie details using TMDB.
+A Next.js movie and TV search app powered by TMDB, with embedded playback via Vidsrc.
+
+## Prerequisites
+- Node.js 18+ (Node 20+ recommended)
 
 ## Setup
-- Create a `.env` file from `.env.example` and set `TMDB_API_KEY`.
-- Node.js 18+ is recommended (uses built-in `fetch`).
-
-## Local development
-Run the local dev server (serves static files and proxies `/api`):
+Create a `.env.local` file:
 
 ```bash
-node dev-server.js
+TMDB_API_KEY=your_tmdb_api_key_here
+NEXT_PUBLIC_VIDSRC_BASE=https://vidsrcme.ru
 ```
 
-Then open `http://localhost:3000`. The server auto-loads `.env` if present.
+`NEXT_PUBLIC_VIDSRC_BASE` is optional. If omitted, the app defaults to `https://vidsrc-embed.ru`.
 
-## VS Code Live Server
-Live Server does not provide `/api`, so you need one of the following:
-- Preferred: run `node dev-server.js` instead of Live Server.
-- If you must use Live Server, set `tmdbApiKey` in `public/config.js` for direct TMDB calls.
+## Run locally
 
-## Project structure
-- `public/` static files (HTML, CSS, JS, service worker).
-- `api/` serverless functions for Vercel deployments.
-- `dev-server.js` local dev server proxying TMDB.
+```bash
+npm install
+npm run dev
+```
 
-## Deployment (Vercel)
-- Set `TMDB_API_KEY` as an environment variable.
-- Vercel serves `public/` at the site root and `api/` as serverless routes.
+Open `http://localhost:3000`.
+
+## Build and start
+
+```bash
+npm run build
+npm run start
+```
+
+## API routes
+- `GET /api/search?query=...&page=...`
+- `GET /api/trending?page=...`
+- `GET /api/movie?id=...&type=movie|tv`
+- `GET /api/videos?id=...&type=movie|tv`
+- `GET /api/genres`
