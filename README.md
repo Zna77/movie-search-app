@@ -31,6 +31,25 @@ npm run build
 npm run start
 ```
 
+## Deploy (GitHub + Vercel)
+
+1. Push code to GitHub.
+2. Import the GitHub repository in Vercel.
+3. In Vercel Project Settings -> Environment Variables, add:
+   - `TMDB_API_KEY`
+   - `NEXT_PUBLIC_VIDSRC_BASE` (optional)
+4. Deploy the `main` branch.
+
+Or with Vercel CLI:
+
+```bash
+vercel login
+vercel link
+vercel env add TMDB_API_KEY
+vercel env add NEXT_PUBLIC_VIDSRC_BASE
+vercel --prod
+```
+
 ## API routes
 - `GET /api/search?query=...&page=...`
 - `GET /api/trending?page=...`
