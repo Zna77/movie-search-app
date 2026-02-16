@@ -15,7 +15,7 @@ export async function GET(request) {
     `&query=${encodeURIComponent(query)}&page=${page}&include_adult=false&language=en-US`;
 
   try {
-    const tmdbRes = await fetch(url, { cache: "no-store" });
+    const tmdbRes = await fetch(url, { next: { revalidate: 120 } });
     const data = await tmdbRes.json();
     return NextResponse.json(data, { status: tmdbRes.ok ? 200 : tmdbRes.status });
   } catch {

@@ -238,6 +238,8 @@ header h1 {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1.15rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 1000px;
 }
 
 .card {
@@ -261,8 +263,10 @@ header h1 {
 }
 
 .card img {
+  display: block;
   width: 100%;
   height: auto;
+  aspect-ratio: 2 / 3;
   object-fit: cover;
 }
 

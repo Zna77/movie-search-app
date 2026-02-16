@@ -10,11 +10,11 @@ export async function GET() {
     const [movieRes, tvRes] = await Promise.all([
       fetch(
         `https://api.themoviedb.org/3/genre/movie/list?api_key=${apiKey}&language=en-US`,
-        { cache: "no-store" }
+        { next: { revalidate: 86400 } }
       ),
       fetch(
         `https://api.themoviedb.org/3/genre/tv/list?api_key=${apiKey}&language=en-US`,
-        { cache: "no-store" }
+        { next: { revalidate: 86400 } }
       ),
     ]);
 

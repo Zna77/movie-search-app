@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const POSTER_BASE = "https://image.tmdb.org/t/p/original";
-const FALLBACK_POSTER_CARD = "https://via.placeholder.com/150x225?text=No+Image";
-const FALLBACK_POSTER_MODAL = "https://via.placeholder.com/200x300?text=No+Image";
+const POSTER_BASE = "https://image.tmdb.org/t/p";
+const POSTER_SIZE_CARD = "w342";
+const POSTER_SIZE_MODAL = "w500";
+const FALLBACK_POSTER = "/poster-placeholder.svg";
 const VIDSRC_BASE = process.env.NEXT_PUBLIC_VIDSRC_BASE || "https://vidsrc-embed.ru";
 
 function getMediaType(item) {
@@ -59,6 +60,15 @@ function buildPlayerUrl(mediaType, id, season = 1, episode = 1) {
   return `${base}/embed/movie/${encodeURIComponent(String(id))}`;
 }
 
+function getPosterUrl(path, size) {
+  return path ? `${POSTER_BASE}/${size}${path}` : FALLBACK_POSTER;
+}
+
+function handlePosterError(event) {
+  if (event.currentTarget.src.includes(FALLBACK_POSTER)) return;
+  event.currentTarget.src = FALLBACK_POSTER;
+}
+
 function sortMedia(arr, sort) {
   const list = [...arr];
   switch (sort) {
@@ -106,6 +116,7 @@ export default function Home() {
 
   const [isLoading, setIsLoading] = useState(false);
   const loadingRef = useRef(false);
+  const autocompleteCacheRef = useRef(new Map());
 
   const [showBackToTop, setShowBackToTop] = useState(false);
 
@@ -286,10 +297,18 @@ export default function Home() {
         return;
       }
 
+      const cached = autocompleteCacheRef.current.get(query);
+      if (cached) {
+        setAutocomplete(cached);
+        return;
+      }
+
       try {
         const response = await fetch(`/api/search?query=${encodeURIComponent(query)}&page=1`);
         const data = await response.json();
-        setAutocomplete(dedupeMedia(filterPlayable(data.results)).slice(0, 5));
+        const list = dedupeMedia(filterPlayable(data.results)).slice(0, 5);
+        autocompleteCacheRef.current.set(query, list);
+        setAutocomplete(list);
       } catch {
         setAutocomplete([]);
       }
@@ -299,26 +318,38 @@ export default function Home() {
   }, [searchInput]);
 
   useEffect(() => {
+    let rafId = null;
+
     const onScroll = () => {
-      const scrollTop = window.scrollY;
-      const scrollHeight = document.documentElement.scrollHeight;
-      const bottomReached = scrollTop + window.innerHeight >= scrollHeight - 100;
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
 
-      setShowBackToTop(scrollTop > 300);
+        const scrollTop = window.scrollY;
+        const scrollHeight = document.documentElement.scrollHeight;
+        const bottomReached = scrollTop + window.innerHeight >= scrollHeight - 100;
 
-      if (bottomReached && !loadingRef.current && currentPage < totalPages) {
-        const nextPage = currentPage + 1;
-        setCurrentPage(nextPage);
-        if (isTrending) {
-          fetchTrending(nextPage, genre);
-        } else if (currentQuery) {
-          searchMedia(currentQuery, nextPage);
+        setShowBackToTop(scrollTop > 300);
+
+        if (bottomReached && !loadingRef.current && currentPage < totalPages) {
+          const nextPage = currentPage + 1;
+          setCurrentPage(nextPage);
+          if (isTrending) {
+            fetchTrending(nextPage, genre);
+          } else if (currentQuery) {
+            searchMedia(currentQuery, nextPage);
+          }
         }
-      }
+      });
     };
 
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
   }, [currentPage, totalPages, isTrending, currentQuery, genre, fetchTrending, searchMedia]);
 
   useEffect(() => {
@@ -541,16 +572,21 @@ export default function Home() {
         </div>
 
         <section className="results-grid">
-          {results.map((item) => (
+          {results.map((item, index) => (
             <button
               key={getMediaIdentity(item)}
               className="card"
               onClick={() => showDetails(item.id, item.media_type)}
             >
               <img
-                loading="lazy"
-                src={item.poster_path ? `${POSTER_BASE}${item.poster_path}` : FALLBACK_POSTER_CARD}
+                loading={index < 4 ? "eager" : "lazy"}
+                fetchPriority={index < 2 ? "high" : "auto"}
+                decoding="async"
+                src={getPosterUrl(item.poster_path, POSTER_SIZE_CARD)}
                 alt={getMediaTitle(item)}
+                width="342"
+                height="513"
+                onError={handlePosterError}
               />
               <div className="info">
                 <h3>{getMediaTitle(item)}</h3>
@@ -589,12 +625,12 @@ export default function Home() {
               </p>
               <p>
                 <img
-                  src={
-                    modalItem.poster_path
-                      ? `${POSTER_BASE}${modalItem.poster_path}`
-                      : FALLBACK_POSTER_MODAL
-                  }
+                  src={getPosterUrl(modalItem.poster_path, POSTER_SIZE_MODAL)}
                   alt={`${getMediaTitle(modalItem)} Poster`}
+                  width="500"
+                  height="750"
+                  decoding="async"
+                  onError={handlePosterError}
                 />
               </p>
               <p>
